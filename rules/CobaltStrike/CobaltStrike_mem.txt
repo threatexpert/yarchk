@@ -1,0 +1,141 @@
+rule cobaltstrike_beacon_strings
+{
+meta:
+    author = "Elastic"
+    description = "Identifies strings used in Cobalt Strike Beacon DLL."
+strings:
+    $a = "%02d/%02d/%02d %02d:%02d:%02d"
+    $b = "Started service %s on %s"
+    $c = "%s as %s\\%s: %d"
+condition:
+    2 of them
+}
+
+rule cobaltstrike_beacon_xor_strings
+{
+meta:
+    author = "Elastic"
+    description = "Identifies XOR'd strings used in Cobalt Strike Beacon DLL."
+strings:
+    $a = "%02d/%02d/%02d %02d:%02d:%02d" xor(0x01-0xff)
+    $b = "Started service %s on %s" xor(0x01-0xff)
+    $c = "%s as %s\\%s: %d" xor(0x01-0xff)
+condition:
+    2 of them
+}
+
+rule cobaltstrike_importtable_xor_strings
+{
+meta:
+    description = "Cobalt Strike Beacon DLL Xored Import Table."
+strings:
+    $a1 = "PeekNamedPipe" xor(0x01-0xff)
+    $a2 = "CreateNamedPipeA" xor(0x01-0xff)
+    $a3 = "ConnectNamedPipe" xor(0x01-0xff)
+    $a4 = "DisconnectNamedPipe" xor(0x01-0xff)
+    $a5 = "CreatePipe" xor(0x01-0xff)
+
+    $a6 = "InternetQueryDataAvailable" xor(0x01-0xff)
+    $a7 = "InternetReadFile" xor(0x01-0xff)
+    $a8 = "InternetCloseHandle" xor(0x01-0xff)
+
+    $a9 = "DnsQuery_A" xor(0x01-0xff)
+    $a10 = "DnsFree" xor(0x01-0xff)
+
+    $b1 = "KERNEL32.dll" xor(0x01-0xff)
+    $b2 = "ADVAPI32.dll" xor(0x01-0xff)
+    $b3 = "DNSAPI.dll" xor(0x01-0xff)
+    $b4 = "WININET.dll" xor(0x01-0xff)
+
+condition:
+    all of them
+}
+
+rule cobaltstrike_beacon_4_2_decrypt
+{
+meta:
+    author = "Elastic"
+    description = "Identifies deobfuscation routine used in Cobalt Strike Beacon DLL version 4.2."
+strings:
+    $a_x64 = {4C 8B 53 08 45 8B 0A 45 8B 5A 04 4D 8D 52 08 45 85 C9 75 05 45 85 DB 74 33 45 3B CB 73 E6 49 8B F9 4C 8B 03}
+    $a_x86 = {8B 46 04 8B 08 8B 50 04 83 C0 08 89 55 08 89 45 0C 85 C9 75 04 85 D2 74 23 3B CA 73 E6 8B 06 8D 3C 08 33 D2}
+condition:
+     any of them
+}
+rule cs_beacon_mem_X1000 {
+meta:
+    description = "cs beacon 1st function"
+strings:
+      $a32 = {
+55                       // push ebp                                
+8BEC                     // mov ebp,esp                             
+53                       // push ebx                                
+56                       // push esi                                
+8B35 ????????            // mov esi,dword ptr ds:[73C9A5EC]         
+8BC6                     // mov eax,esi                             
+85F6                     // test esi,esi                            
+74 3C                    // je beacon32.73C6104D                    
+8338 01                  // cmp dword ptr ds:[eax],1                
+75 2D                    // jne beacon32.73C61043                   
+8B55 08                  // mov edx,dword ptr ss:[ebp+8]            
+8D48 04                  // lea ecx,dword ptr ds:[eax+4]            
+8A1A                     // mov bl,byte ptr ds:[edx]                
+3A19                     // cmp bl,byte ptr ds:[ecx]                
+75 18                    // jne beacon32.73C6103A                   
+84DB                     // test bl,bl                              
+74 10                    // je beacon32.73C61036                    
+8A5A 01                  // mov bl,byte ptr ds:[edx+1]              
+3A59 01                  // cmp bl,byte ptr ds:[ecx+1]              
+75 0C                    // jne beacon32.73C6103A                   
+42                       // inc edx                                 
+42                       // inc edx                                 
+41                       // inc ecx                                 
+41                       // inc ecx                                 
+84DB                     // test bl,bl                              
+75 E6                    // jne beacon32.73C6101C                   
+33C9                     // xor ecx,ecx                             
+EB 05                    // jmp beacon32.73C6103F                   
+1BC9                     // sbb ecx,ecx                             
+83D9 FF                  // sbb ecx,FFFFFFFF                        
+85C9                     // test ecx,ecx                            
+74 4B                    // je beacon32.73C6108E                    
+8B80 04400000            // mov eax,dword ptr ds:[eax+4004]         
+85C0                     // test eax,eax                            
+75 C4                    // jne beacon32.73C61011                   
+8BC6                     // mov eax,esi                             
+85F6                     // test esi,esi                            
+74 0F                    // je beacon32.73C61062                    
+8338 00                  // cmp dword ptr ds:[eax],0                
+74 36                    // je beacon32.73C6108E                    
+8B80 04400000            // mov eax,dword ptr ds:[eax+4004]         
+85C0                     // test eax,eax                            
+75 F1                    // jne beacon32.73C61053                   
+57                       // push edi                                
+BB 08400000              // mov ebx,4008                            
+53                       // push ebx                                
+E8 ????????              // call beacon32.73C758CD                  
+53                       // push ebx                                
+8BF8                     // mov edi,eax                             
+6A 00                    // push 0                                  
+57                       // push edi                                
+E8 ????????              // call beacon32.73C7D4C0                  
+83C4 10                  // add esp,10                              
+8327 00                  // and dword ptr ds:[edi],0                
+89B7 04400000            // mov dword ptr ds:[edi+4004],esi         
+893D ????????            // mov dword ptr ds:[73C9A5EC],edi         
+8BC7                     // mov eax,edi                             
+5F                       // pop edi                                 
+5E                       // pop esi                                 
+5B                       // pop ebx                                 
+5D                       // pop ebp                                 
+C3                       // ret                                     
+
+}
+
+      $a64 = {
+48 8B C4 48 89 58 08 48 89 68 10 48 89 70 18 48 89 78 20 45 33 DB 45 33 D2 33 FF 33 F6 48 8B E9 BB 03 00 00 00 85 D2 0F 84 81 00 00 00 0F B6 45 00 48 8D 0D ?? ?? ?? ?? 8A 0C 08 80 F9 FF 74 61 80 F9 FE 75 0D 32 C9 FF CB 79 0C B8 07 00 00 00 EB 61 83 FB 03 75 F4 41 C1 E3 06 0F B6 C1 FF C7 44 0B D8 83 FF 04 75 39 41 8D 04 1A 41 3B 01 77 57 41 8B CB C1 E9 10 43 88 0C 02 41 FF C2 83 FB 01 7E 0D 41 8B CB C1 E9 08 43 88 0C 02 41 FF C2 83 FB 02 7E 07 47 88 1C 02 41 FF C2 45 33 DB 33 FF FF C6 48 FF C5 3B F2 72 83 85 FF 75 9D 45 89 11 33 C0 48 8B 5C 24 08 48 8B 6C 24 10 48 8B 74 24 18 48 8B 7C 24 20 C3
+}
+
+condition:
+    any of them
+}
